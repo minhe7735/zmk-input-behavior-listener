@@ -11,3 +11,6 @@ properties:
   time-to-live-ms:
     type: int
     default: 500
+  require-prior-idle-ms:
+    type: int
+    default: -1

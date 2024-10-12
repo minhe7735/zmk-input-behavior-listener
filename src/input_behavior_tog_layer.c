@@ -15,11 +15,13 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include <zmk/keymap.h>
 #include <zmk/behavior.h>
+#include <zmk/events/keycode_state_changed.h>
 
 // #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
 
 struct behavior_tog_layer_config {
     uint32_t time_to_live_ms;
+    int32_t require_prior_idle_ms;
 };
 
 struct behavior_tog_layer_data {
@@ -28,6 +30,41 @@ struct behavior_tog_layer_data {
     struct k_work_delayable toggle_layer_deactivate_work;
     const struct device *dev;
 };
+
+// this keeps track of the last non-move, non-mod key tap
+extern int64_t last_tapped_timestamp;
+// this keeps track of the last time a move was pressed
+int64_t last_move_timestamp = INT32_MIN;
+
+static void store_last_tapped(int64_t timestamp) {
+    if (timestamp > last_move_timestamp) {
+        last_tapped_timestamp = timestamp;
+    }
+}
+
+static bool is_quick_tap(const struct pixart_config *config, int64_t timestamp) {
+    return (last_tapped_timestamp + config->require_prior_idle_ms) > timestamp;
+}
+
+static int keycode_state_changed_listener(const zmk_event_t *eh) {
+    struct zmk_keycode_state_changed *ev = as_zmk_keycode_state_changed(eh);
+    if (ev->state && !is_mod(ev->usage_page, ev->keycode)) {
+        store_last_tapped(ev->timestamp);
+    }
+    return ZMK_EV_EVENT_BUBBLE;
+}
+
+int behavior_move_listener(const zmk_event_t *eh) {
+    if (as_zmk_keycode_state_changed(eh) != NULL) {
+        return keycode_state_changed_listener(eh);
+    }
+    return ZMK_EV_EVENT_BUBBLE;
+}
+
+ZMK_LISTENER(pmw3610, behavior_move_listener);
+ZMK_SUBSCRIPTION(pmw3610, zmk_keycode_state_changed);
+
+// end
 
 static void toggle_layer_deactivate_cb(struct k_work *work) {
     struct k_work_delayable *work_delayable = (struct k_work_delayable *)work;
@@ -56,7 +93,7 @@ static int to_keymap_binding_pressed(struct zmk_behavior_binding *binding,
     struct behavior_tog_layer_data *data = (struct behavior_tog_layer_data *)dev->data;
     const struct behavior_tog_layer_config *cfg = dev->config;
     data->toggle_layer = binding->param1;
-    if (!zmk_keymap_layer_active(data->toggle_layer)) {
+    if (!zmk_keymap_layer_active(data->toggle_layer) && !is_quick_tap(cfg, event.timestamp)) {
         // LOG_DBG("schedule activate layer %d", data->toggle_layer);
         k_work_schedule(&data->toggle_layer_activate_work, K_MSEC(0));
     }
@@ -80,6 +117,7 @@ static const struct behavior_driver_api behavior_tog_layer_driver_api = {
     static struct behavior_tog_layer_data behavior_tog_layer_data_##n = {};             \
     static struct behavior_tog_layer_config behavior_tog_layer_config_##n = {           \
         .time_to_live_ms = DT_INST_PROP(n, time_to_live_ms),                            \
+        .require_prior_idle_ms = DT_PROP(DT_DRV_INST(0), require_prior_idle_ms),        \
     };                                                                                  \
     BEHAVIOR_DT_INST_DEFINE(n, input_behavior_to_init, NULL,                            \
                             &behavior_tog_layer_data_##n,                               \
