@@ -42,7 +42,7 @@ static void store_last_tapped(int64_t timestamp) {
     }
 }
 
-static bool is_quick_tap(const struct pixart_config *config, int64_t timestamp) {
+static bool is_quick_tap(const struct behavior_tog_layer_config *config, int64_t timestamp) {
     return (last_tapped_timestamp + config->require_prior_idle_ms) > timestamp;
 }
 
