@@ -14,7 +14,3 @@ properties:
   require-prior-idle-ms:
     type: int
     default: -1
-  hold-trigger-key-positions:
-    type: array
-    required: false
-    default: []
