@@ -11,6 +11,7 @@
             #binding-cells = <1>;
             time-to-live-ms = <500>;
             require-prior-idle-ms = <-1>;
+            hold_trigger_key_positions = <>;
         };
     };
 };
