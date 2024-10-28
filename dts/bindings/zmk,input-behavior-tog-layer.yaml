@@ -14,9 +14,9 @@ properties:
         default: -1
         description: Time in milliseconds that must pass after the last keystroke before the layer can be toggled
 
-    deactivation-positions:
+    excluded-positions:
         type: array
         required: false
         default: []
-        description: Array of key positions that will trigger layer deactivation when pressed
+        description: Array of key positions that will NOT trigger layer deactivation when pressed
 

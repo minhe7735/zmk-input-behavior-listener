@@ -18,11 +18,11 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/events/position_state_changed.h>
 #include <zmk/events/keycode_state_changed.h>
 
-#define MAX_DEACTIVATION_POSITIONS 4
+#define MAX_EXCLUDED_POSITIONS 8
 
 struct behavior_tog_layer_config {
     int32_t require_prior_idle_ms;
-    uint32_t deactivation_positions[MAX_DEACTIVATION_POSITIONS];
+    uint32_t excluded_positions[MAX_EXCLUDED_POSITIONS];
     uint8_t num_positions;
 };
 
@@ -47,9 +47,9 @@ static bool is_quick_tap(const struct behavior_tog_layer_config *config, int64_t
     return (last_tapped_timestamp + config->require_prior_idle_ms) > timestamp;
 }
 
-static bool is_deactivation_position(const struct behavior_tog_layer_config *config, uint32_t position) {
+static bool is_excluded_position(const struct behavior_tog_layer_config *config, uint32_t position) {
     for (int i = 0; i < config->num_positions; i++) {
-        if (config->deactivation_positions[i] == position) {
+        if (config->excluded_positions[i] == position) {
             return true;
         }
     }
@@ -58,13 +58,13 @@ static bool is_deactivation_position(const struct behavior_tog_layer_config *con
 
 static int position_state_changed_listener(const zmk_event_t *eh) {
     struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
-    const struct device *dev = DEVICE_DT_INST_GET(0);  // Get the device instance
+    const struct device *dev = DEVICE_DT_INST_GET(0);
     struct behavior_tog_layer_data *data = (struct behavior_tog_layer_data *)dev->data;
     const struct behavior_tog_layer_config *cfg = dev->config;
 
     if (ev->state && data->is_active) {  // Key pressed and layer is active
-        if (is_deactivation_position(cfg, ev->position)) {
-            LOG_DBG("deactivation key pressed at position %d", ev->position);
+        if (!is_excluded_position(cfg, ev->position)) {  // If position is NOT in the excluded list
+            LOG_DBG("non-excluded key pressed at position %d, deactivating layer", ev->position);
             data->is_active = false;
             zmk_keymap_layer_deactivate(data->toggle_layer);
         }
@@ -116,8 +116,8 @@ ZMK_SUBSCRIPTION(behavior_tog_layer, zmk_position_state_changed);
     static struct behavior_tog_layer_data behavior_tog_layer_data_##n = {};            \
     static struct behavior_tog_layer_config behavior_tog_layer_config_##n = {          \
         .require_prior_idle_ms = DT_PROP(DT_DRV_INST(0), require_prior_idle_ms),      \
-        .deactivation_positions = DT_INST_PROP(n, deactivation_positions),             \
-        .num_positions = DT_INST_PROP_LEN(n, deactivation_positions),                  \
+        .excluded_positions = DT_INST_PROP(n, excluded_positions),                      \
+        .num_positions = DT_INST_PROP_LEN(n, excluded_positions),                      \
     };                                                                                 \
     BEHAVIOR_DT_INST_DEFINE(n, input_behavior_to_init, NULL,                          \
                            &behavior_tog_layer_data_##n,                               \
