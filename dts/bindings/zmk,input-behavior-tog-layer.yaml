@@ -8,9 +8,15 @@ compatible: "zmk,input-behavior-tog-layer"
 include: one_param.yaml
 
 properties:
-  time-to-live-ms:
-    type: int
-    default: 500
-  require-prior-idle-ms:
-    type: int
-    default: -1
+    require-prior-idle-ms:
+        type: int
+        required: false
+        default: -1
+        description: Time in milliseconds that must pass after the last keystroke before the layer can be toggled
+
+    deactivation-positions:
+        type: array
+        required: false
+        default: []
+        description: Array of key positions that will trigger layer deactivation when pressed
+
