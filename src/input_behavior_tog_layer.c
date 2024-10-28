@@ -58,7 +58,7 @@ static bool is_deactivation_position(const struct behavior_tog_layer_config *con
 
 static int position_state_changed_listener(const zmk_event_t *eh) {
     struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
-    const struct device *dev = zmk_behavior_get_binding("TOG_LAYER")->behavior_dev;
+    const struct device *dev = DEVICE_DT_INST_GET(0);  // Get the device instance
     struct behavior_tog_layer_data *data = (struct behavior_tog_layer_data *)dev->data;
     const struct behavior_tog_layer_config *cfg = dev->config;
 
